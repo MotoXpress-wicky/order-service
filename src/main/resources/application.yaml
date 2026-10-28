@@ -1,0 +1,98 @@
+spring:
+  application:
+    name: order-service
+  profiles:
+    # IntelliJ runs the "dev" profile. The Docker env file sets SPRING_PROFILES_ACTIVE=docker.
+    default: dev
+  datasource:
+    url: ${DB_URL}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Flyway creates the tables. Hibernate only checks that they match the entities.
+      ddl-auto: validate
+  rabbitmq:
+    template:
+      # Sending an event is tried 3 times before it is given up.
+      retry:
+        enabled: true
+        max-attempts: 3
+        initial-interval: 500ms
+    listener:
+      simple:
+        # A failed message is tried 3 times (2 s, then 4 s apart). After that it goes to the dead-letter queue.
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 2s
+          multiplier: 2
+  servlet:
+    multipart:
+      # A little above shipments.pickup-receipt.max-size-bytes, so our own check gives the clear error.
+      max-file-size: 6MB
+      max-request-size: 7MB
+
+server:
+  port: 8082
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  pattern:
+    # traceId = the X-Request-Id that Nginx adds to every request
+    level: "%5p [${spring.application.name},%X{traceId:-}]"
+
+auth:
+  token:
+    # Same secret as user-service. TODO: replace with the RS256 public key when user-service signs with RS256 (M17).
+    secret: ${JWT_SECRET}
+  cookie:
+    name: access_token
+
+# Business settings. Change them here, not in Java.
+shop:
+  currency: LKR
+  order-number-prefix: "MX-"
+  # One flat fee for the whole country (BR8)
+  delivery-fee: 500.00
+  couriers:
+    - Courier A
+    - Courier B
+  # Collected cash that the courier has not paid after this many days is "overdue" (BR14)
+  overdue-cash-days: 14
+  max-lines-per-order: 50
+  max-quantity-per-line: 100
+
+shipments:
+  pickup-receipt:
+    max-size-bytes: 5242880
+
+# product-service is called over HTTP to take and give back stock (decision 36)
+product-service:
+  base-url: ${PRODUCT_SERVICE_URL}
+  connect-timeout: 2s
+  read-timeout: 5s
+
+events:
+  exchange: app.events
+  # Payment events change the payment status of an order
+  payment-queue: order.payment-events
+
+storage:
+  # The S3 API of the object-storage container. AWS S3 later: change only these values.
+  s3:
+    endpoint: ${S3_ENDPOINT}
+    region: ${S3_REGION:us-east-1}
+    access-key: ${S3_ACCESS_KEY}
+    secret-key: ${S3_SECRET_KEY}
+    bucket: ${S3_BUCKET:shipment-documents}
