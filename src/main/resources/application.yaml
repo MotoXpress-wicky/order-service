@@ -89,6 +89,13 @@ events:
   exchange: app.events
   # Payment events change the payment status of an order
   payment-queue: order.payment-events
+  # The outbox (M46): an event is saved in the database with the change it announces, then sent to RabbitMQ.
+  # If RabbitMQ is down, it waits there and is sent later.
+  outbox:
+    enabled: true          # false turns off the background retry and cleanup
+    retry-interval: 10s    # how often waiting events are tried again
+    batch-size: 50         # events per sending round
+    keep: 7d               # sent events are deleted after this time
 
 storage:
   # The S3 API of the object-storage container. AWS S3 later: change only these values.
