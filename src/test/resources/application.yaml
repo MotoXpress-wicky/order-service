@@ -62,6 +62,8 @@ events:
   payment-queue: order.payment-events
   outbox:
     enabled: false         # no background job during a test
+    failure-pause: 0s      # no pause: every test sees the plain behaviour
+    async: false           # send inside the request, so a test can check the result at once
 
 storage:
   s3:
