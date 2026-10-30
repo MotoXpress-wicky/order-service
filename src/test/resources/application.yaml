@@ -60,6 +60,8 @@ product-service:
 events:
   exchange: app.events
   payment-queue: order.payment-events
+  outbox:
+    enabled: false         # no background job during a test
 
 storage:
   s3:

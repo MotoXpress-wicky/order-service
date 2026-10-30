@@ -8,8 +8,10 @@ import com.ecommerce.orderservice.entity.Enums.ShipmentState;
 import com.ecommerce.orderservice.entity.Enums.ShipmentStatus;
 import com.ecommerce.orderservice.entity.Order;
 import com.ecommerce.orderservice.entity.Shipment;
+import com.ecommerce.orderservice.repository.OutboxEventRepository;
 import com.ecommerce.orderservice.repository.OrderRepository;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.amqp.core.MessagePostProcessor;
@@ -50,6 +52,15 @@ class AdminOrdersTest {
     ProductClient productClient;
     @MockitoBean
     RabbitTemplate rabbit;
+
+    @Autowired
+    OutboxEventRepository outbox;
+
+    @BeforeEach
+    void emptyTheOutbox() {
+        // Events of other tests that were never sent (there was no RabbitMQ mock) must not be sent during this test.
+        outbox.deleteAll();
+    }
 
     @AfterEach
     void clean() {
