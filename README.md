@@ -72,6 +72,25 @@ Events that arrive twice, or in a wrong order, are ignored safely.
 When stock must go back (cancel, return) the call to product-service happens **inside** the transaction that locks the order row.
 If product-service is down, nothing changes and the person tries again.
 
+## Events (the outbox)
+
+An event is never sent from the request. `publish()` saves it in the table `outbox_events` in the **same transaction** as the
+change (so a rolled back order leaves no event). After the commit, one background thread sends the waiting events to
+RabbitMQ, oldest first, and marks them sent. If RabbitMQ is down, the request still works and the events wait; a retry
+every 10 seconds sends them later, with the same `messageId` (listeners skip duplicates). Sent events are deleted after
+7 days. Decision M46 in `infrastructure/docs/mvp/decisions.md`.
+
+| Setting | Meaning |
+|---|---|
+| `events.outbox.retry-interval` | How often waiting events are tried again (10 s) |
+| `events.outbox.failure-pause` | After a refusal, the sending thread pauses this long; the retry job carries on (10 s) |
+| `events.outbox.batch-size` | Events per sending round (50) |
+| `events.outbox.keep` | How long sent events are kept (7 days) |
+| `events.outbox.async` | `true`: one background thread sends. `false`: inside the request (tests only) |
+| `events.outbox.enabled` | `false` turns off the retry and cleanup jobs (tests only) |
+
+Run one copy of the service for now: with two copies the same event can be sent twice and out of sequence.
+
 ## Settings
 
 | Setting | Env name | Meaning |
